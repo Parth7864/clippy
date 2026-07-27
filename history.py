@@ -1,40 +1,63 @@
 import json
 import os
+from datetime import datetime
 
 FILE = "data.json"
+MAX_ITEMS = 200
 
 
 def load():
     if not os.path.exists(FILE):
         return []
+    with open(FILE) as f:
+        data = json.load(f)
+    if data and isinstance(data[0], str):
+        data = [{"text": item, "time": ""} for item in data]
+        save(data)
+    return data
 
-    with open(FILE, "r") as f:
-        return json.load(f)
 
-
-def save(history):
+def save(items):
     with open(FILE, "w") as f:
-        json.dump(history, f, indent=4)
+        json.dump(items, f, indent=2)
 
 
 def add(text):
-    history = load()
+    if not text:
+        return []
+    items = load()
+    if items and items[0].get("text") == text:
+        return items
+    items.insert(0, {"text": text, "time": datetime.now().isoformat(timespec="seconds")})
+    items = items[:MAX_ITEMS]
+    save(items)
+    return items
 
-    if text and (not history or history[0] != text):
-        history.insert(0, text)
 
-    history = history[:100]
+def remove(index):
+    items = load()
+    if 0 <= index < len(items):
+        del items[index]
+        save(items)
+    return items
 
-    save(history)
+
+def clear():
+    save([])
 
 
-def show():
-    history = load()
+def search(query):
+    items = load()
+    q = query.lower()
+    return [(i, item) for i, item in enumerate(items) if q in item["text"].lower()]
 
-    if not history:
-        print("No clipboard history.")
-        return
 
-    for i, item in enumerate(history, 1):
-        preview = item.replace("\n", " ")[:50]
-        print(f"{i}. {preview}")
+def get(index):
+    items = load()
+    if 0 <= index < len(items):
+        return items[index]
+    return None
+
+
+def count():
+    return len(load())
