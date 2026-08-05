@@ -20,6 +20,7 @@ class ClipboardManager:
         self.thread = None
         self.last_hash = ""
         self.callbacks = []
+        self._error_streak = 0
 
     def get(self):
         try:
@@ -35,6 +36,12 @@ class ClipboardManager:
             self._set(text)
         except Exception as e:
             logger.error(f"Clipboard write failed: {e}")
+
+    def clear(self):
+        self.set("")
+
+    def supports_system(self):
+        return self.system in ("Darwin", "Linux", "Windows")
 
     def watch(self, callback=None):
         if self.running:
@@ -104,11 +111,16 @@ class ClipboardManager:
                     h = hashlib.sha256(text.encode()).hexdigest()
                     if h != self.last_hash:
                         self.last_hash = h
+                        self._error_streak = 0
                         for cb in self.callbacks:
                             try:
                                 cb(text)
                             except Exception as e:
                                 logger.error(f"Callback error: {e}")
+                else:
+                    self._error_streak = 0
             except Exception as e:
-                logger.error(f"Monitor error: {e}")
-            time.sleep(self.check_interval)
+                self._error_streak += 1
+                logger.error(f"Monitor error ({self._error_streak}): {e}")
+            sleep = self.check_interval * min(2 ** self._error_streak, 30)
+            time.sleep(sleep)
