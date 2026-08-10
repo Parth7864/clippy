@@ -60,7 +60,7 @@ q               quit
 
 ## GUI
 
-Requires Python with tkinter (macOS: `brew install python-tk@3.14`; Debian/Ubuntu:
+Requires Python with tkinter (macOS: `brew install python-tk@3.14`; Linux:
 `sudo apt install python3-tk`). Frameless, draggable by the header, rounded corners,
 live-refreshing list, search box, range delete (e.g. `3-10` or `all`), and click/double-click
 to copy.
