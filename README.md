@@ -16,6 +16,10 @@ History is capped at 500 items (oldest dropped first on new copies).
 
 ## Usage
 
+### Note: I would suggest cloning this repository instead of installing directly from the pypi website because I have not tested it yet on multiple systems. It would mostly work.
+
+Clone this repo or install from pypi, then run the installation script and grant permissions if needed using chmod. The installation script will create a program that automatically translates simple, user-friendly commands into the actual python command. Then, follow the commands listed in the 'Commands' section.
+
 Run with no arguments to open the interactive menu (TUI):
 
     python3 main.py
@@ -61,6 +65,4 @@ q               quit
 ## GUI
 
 Requires Python with tkinter (macOS: `brew install python-tk@3.14`; Linux:
-`sudo apt install python3-tk`). Frameless, draggable by the header, rounded corners,
-live-refreshing list, search box, range delete (e.g. `3-10` or `all`), and click/double-click
-to copy.
+`sudo apt install python3-tk`)
