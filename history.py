@@ -1,12 +1,23 @@
 import json
 import os
 import shutil
+import sys
+import tempfile
 from datetime import datetime
 
-_FILE_CWD = "data.json"
-_FILE_HOME = os.path.expanduser("~/.clippy_history.json")
-FILE = _FILE_CWD if os.path.exists(_FILE_CWD) else _FILE_HOME
 MAX_ITEMS = 500
+
+
+def _data_file():
+    env = os.environ.get("CLIPPY_DATA")
+    if env:
+        return env
+    if os.path.exists("data.json"):
+        return "data.json"
+    return os.path.expanduser("~/.clippy_history.json")
+
+
+FILE = _data_file()
 
 
 def _now():
@@ -16,10 +27,19 @@ def _now():
 def load():
     if not os.path.exists(FILE):
         return []
-    with open(FILE) as f:
-        data = json.load(f)
-    if not data:
-        return data
+    try:
+        with open(FILE, encoding="utf-8") as f:
+            data = json.load(f)
+    except (ValueError, OSError):
+        corrupt = FILE + ".corrupt"
+        try:
+            os.replace(FILE, corrupt)
+        except OSError:
+            pass
+        print(f"clippy: {FILE} unreadable, moved to {corrupt}", file=sys.stderr)
+        return []
+    if not isinstance(data, list) or not data:
+        return []
     migrated = isinstance(data[0], str) or "count" not in data[0] or "favorite" not in data[0]
     items = []
     for entry in data:
@@ -34,13 +54,22 @@ def load():
 
 
 def save(items):
-    with open(FILE, "w") as f:
-        json.dump(items, f, indent=2)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(FILE) or ".", prefix=".clippy-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(items, f, indent=2)
+        os.replace(tmp, FILE)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def add(text):
     if not text:
-        return load()
+        return
     items = load()
     now = _now()
     for i, item in enumerate(items):
@@ -50,11 +79,9 @@ def add(text):
             items.pop(i)
             items.insert(0, item)
             save(items)
-            return items
+            return
     items.insert(0, {"text": text, "time": now, "count": 1, "favorite": False})
-    items = items[:MAX_ITEMS]
-    save(items)
-    return items
+    save(items[:MAX_ITEMS])
 
 
 def remove(index):
@@ -62,7 +89,6 @@ def remove(index):
     if 0 <= index < len(items):
         del items[index]
         save(items)
-    return items
 
 
 def delete_indices(indices):
@@ -71,7 +97,6 @@ def delete_indices(indices):
         if 0 <= index < len(items):
             del items[index]
     save(items)
-    return items
 
 
 def update(index, text):
@@ -80,7 +105,6 @@ def update(index, text):
         items[index]["text"] = text
         items[index]["time"] = _now()
         save(items)
-    return items
 
 
 def toggle_favorite(index):
@@ -88,7 +112,6 @@ def toggle_favorite(index):
     if 0 <= index < len(items):
         items[index]["favorite"] = not items[index].get("favorite", False)
         save(items)
-    return items
 
 
 def get_favorites():

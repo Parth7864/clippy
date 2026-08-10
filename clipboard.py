@@ -40,9 +40,6 @@ class ClipboardManager:
     def clear(self):
         self.set("")
 
-    def supports_system(self):
-        return self.system in ("Darwin", "Linux", "Windows")
-
     def watch(self, callback=None):
         if self.running:
             return

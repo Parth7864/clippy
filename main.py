@@ -15,6 +15,22 @@ from history import (
 )
 
 
+def plural(count, word):
+    if count == 1:
+        return word
+    if word.endswith("ch"):
+        return word + "es"
+    return word + "s"
+
+
+def plural(count, word):
+    if count == 1:
+        return word
+    if word.endswith("ch"):
+        return word + "es"
+    return word + "s"
+
+
 def parse_range(spec):
     result = []
     for part in spec.split(","):
@@ -35,6 +51,11 @@ def parse_range(spec):
             except ValueError:
                 continue
     return sorted(set(result), reverse=True)
+
+
+def fail(msg):
+    print(msg, file=sys.stderr)
+    return 1
 
 
 def cmd_watch(args):
@@ -64,15 +85,14 @@ def cmd_history(args):
         ts = item.get("time", "")[:16]
         cnt = item.get("count", 1)
         print(f"{i:3d}. {star} [{ts}] ({cnt}x) {preview}")
-    print(f"\n{len(items)} item{'s' if len(items) != 1 else ''}")
+    print(f"\n{len(items)} {plural(len(items), 'item')}")
 
 
 def cmd_search(args):
     items = load()
     q = (args.spec or "").lower()
     if not q:
-        print("Usage: clippy search <query>")
-        return
+        return fail("Usage: clippy search <query>")
     results = [i for i, item in enumerate(items) if q in item["text"].lower()]
     if not results:
         print(f'No matches for "{args.spec}".')
@@ -81,7 +101,7 @@ def cmd_search(args):
         item = items[idx]
         star = "★" if item.get("favorite") else " "
         print(f"{idx + 1:3d}. {star} {item['text'].replace(chr(10), ' ')[:60]}")
-    print(f"\n{len(results)} match{'es' if len(results) != 1 else ''}")
+    print(f"\n{len(results)} {plural(len(results), 'match')}")
 
 
 def cmd_top(args):
@@ -123,7 +143,7 @@ def cmd_dedupe(args):
     before = len(load())
     items = dedupe()
     removed = before - len(items)
-    print(f"Removed {removed} duplicate{'s' if removed != 1 else ''}. {len(items)} remain.")
+    print(f"Removed {removed} {plural(removed, 'duplicate')}. {len(items)} remain.")
 
 
 def cmd_backup(args):
@@ -137,8 +157,7 @@ def cmd_backup(args):
 def cmd_export(args):
     fmt = (args.spec or "json").lower()
     if fmt not in ("json", "txt", "md", "markdown"):
-        print("Format must be json, txt, or md.")
-        return
+        return fail("Format must be json, txt, or md.")
     ext, content = export_history(fmt)
     outfile = args.extra or f"clippy_export.{ext}"
     with open(outfile, "w") as f:
@@ -149,17 +168,14 @@ def cmd_export(args):
 def cmd_import(args):
     path = args.spec
     if not path:
-        print("Usage: clippy import <file.json>")
-        return
+        return fail("Usage: clippy import <file.json>")
     if not os.path.exists(path):
-        print(f"No such file: {path}")
-        return
+        return fail(f"No such file: {path}")
     try:
         added = import_file(path)
     except Exception as e:
-        print(f"Import failed: {e}")
-        return
-    print(f"Imported {added} new item{'s' if added != 1 else ''}.")
+        return fail(f"Import failed: {e}")
+    print(f"Imported {added} new {plural(added, 'item')}.")
 
 
 def cmd_favorite(args):
@@ -167,11 +183,9 @@ def cmd_favorite(args):
     try:
         idx = int(args.spec or "") - 1
     except ValueError:
-        print("Usage: clippy favorite <index>")
-        return
+        return fail("Usage: clippy favorite <index>")
     if not (0 <= idx < len(items)):
-        print("Index out of range.")
-        return
+        return fail("Index out of range.")
     toggle_favorite(idx)
     items = load()
     state = "favorited ★" if items[idx].get("favorite") else "unfavorited"
@@ -183,11 +197,9 @@ def cmd_edit(args):
     try:
         idx = int(args.spec or "") - 1
     except ValueError:
-        print("Usage: clippy edit <index>")
-        return
+        return fail("Usage: clippy edit <index>")
     if not (0 <= idx < len(items)):
-        print("Index out of range.")
-        return
+        return fail("Index out of range.")
     editor = os.environ.get("EDITOR") or os.environ.get("VISUAL") or "vi"
     original = items[idx]["text"]
     fd, path = tempfile.mkstemp(suffix=".txt")
@@ -208,10 +220,9 @@ def cmd_truncate(args):
     try:
         n = int(args.spec or "")
     except ValueError:
-        print("Usage: clippy truncate <n>")
-        return
+        return fail("Usage: clippy truncate <n>")
     items = truncate(n)
-    print(f"Truncated to {len(items)} item{'s' if len(items) != 1 else ''}.")
+    print(f"Truncated to {len(items)} {plural(len(items), 'item')}.")
 
 
 def cmd_delete(args):
@@ -222,14 +233,13 @@ def cmd_delete(args):
     spec = args.spec or ""
     if spec.strip().lower() == "all":
         clear()
-        print(f"Cleared all {len(items)} item{'s' if len(items) != 1 else ''}.")
+        print(f"Cleared all {len(items)} {plural(len(items), 'item')}.")
         return
     indices = [i for i in parse_range(spec) if 0 <= i < len(items)]
     if not indices:
-        print("Invalid range. Use e.g. 3, 3-10, 1,3,7 or all.")
-        return
+        return fail("Invalid range. Use e.g. 3, 3-10, 1,3,7 or all.")
     delete_indices(indices)
-    print(f"Deleted {len(indices)} item{'s' if len(indices) != 1 else ''}.")
+    print(f"Deleted {len(indices)} {plural(len(indices), 'item')}.")
 
 
 def cmd_menu(args):
@@ -353,7 +363,7 @@ def cmd_menu(args):
                                    if search_query.lower() in it["text"].lower()]
                         if matches:
                             selected = matches[0]
-                            status_msg = f"found {len(matches)} match{'es' if len(matches) != 1 else ''}"
+                            status_msg = f"found {len(matches)} {plural(len(matches), 'match')}"
                             msg_ttl = 25
                         else:
                             status_msg = "no matches"
@@ -441,7 +451,7 @@ def cmd_menu(args):
             header_left = " clippy · clipboard history "
             if favorites_only:
                 header_left += "★ "
-            header_right = f" ● {len(view)} item{'s' if len(view) != 1 else ''} "
+            header_right = f" ● {len(view)} {plural(len(view), 'item')} "
             right_x = w - len(header_right)
             left_w = max(0, right_x - 1)
             put(0, header_left[:left_w], curses.A_REVERSE)
@@ -500,7 +510,10 @@ def cmd_menu(args):
             stdscr.refresh()
             curses.napms(40)
 
-    curses.wrapper(draw)
+    try:
+        curses.wrapper(draw)
+    except KeyboardInterrupt:
+        pass
 
 
 def cmd_gui(args):
@@ -681,7 +694,7 @@ def cmd_gui(args):
     def auto_refresh():
         nonlocal items
         new = load()
-        if len(new) != len(items):
+        if new != items:
             sel = listbox.curselection()
             sel_text = items[visible_indices[sel[0]]]["text"] if sel and 0 <= sel[0] < len(visible_indices) else None
             items = new
@@ -689,6 +702,8 @@ def cmd_gui(args):
             show_preview()
         root.after(1500, auto_refresh)
 
+    ClipboardManager().watch(add)
+    root.protocol("WM_DELETE_WINDOW", root.destroy)
     listbox.bind("<<ListboxSelect>>", lambda e: show_preview())
     listbox.bind("<Double-Button-1>", lambda e: copy_selected())
     range_entry.bind("<Return>", lambda e: delete_range())
@@ -707,10 +722,15 @@ def cmd_gui(args):
     header_drag = canvas.create_rectangle(0, 0, W - 48, 40, fill=TRANS, outline="")
     drag_tag = "drag"
     canvas.addtag_withtag(drag_tag, header_drag)
-    canvas.tag_bind(drag_tag, "<Button-1>", lambda e: root._start_drag(e))
-    canvas.tag_bind(drag_tag, "<B1-Motion>", lambda e: root._do_drag(e))
-    root._start_drag = lambda e: setattr(root, "_drag_off", (e.x_root - root.winfo_x(), e.y_root - root.winfo_y()))
-    root._do_drag = lambda e: root.geometry(f"+{e.x_root - root._drag_off[0]}+{e.y_root - root._drag_off[1]}")
+
+    def start_drag(e):
+        root._drag_off = (e.x_root - root.winfo_x(), e.y_root - root.winfo_y())
+
+    def do_drag(e):
+        root.geometry(f"+{e.x_root - root._drag_off[0]}+{e.y_root - root._drag_off[1]}")
+
+    canvas.tag_bind(drag_tag, "<Button-1>", start_drag)
+    canvas.tag_bind(drag_tag, "<B1-Motion>", do_drag)
 
     canvas.create_text(22, 22, anchor="w", text="clippy", fill=ACCENT, font=("TkDefaultFont", 13, "bold"))
     count_text = canvas.create_text(W - 100, 22, anchor="e", text="", fill=MUTED, font=ui)
@@ -745,10 +765,10 @@ def main():
                         help="Primary argument: query, index, range spec, file, or format")
     parser.add_argument("extra", nargs="?",
                         help="Secondary argument (export output file)")
-    parser.add_argument("--version", action="version", version="clippy 2.0")
+    parser.add_argument("--version", action="version", version="clippy 2.1")
     args = parser.parse_args()
 
-    {
+    commands = {
         "watch": cmd_watch,
         "history": cmd_history,
         "search": cmd_search,
@@ -764,8 +784,9 @@ def main():
         "delete": cmd_delete,
         "menu": cmd_menu,
         "gui": cmd_gui,
-    }[args.command](args)
+    }
+    return commands[args.command](args) or 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
